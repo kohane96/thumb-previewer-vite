@@ -1,0 +1,5 @@
+{
+  "name": "Thumbnail Previewer",
+  "description": "An application to preview multiple YouTube-style thumbnails. Upload multiple image files to see how they look together in a grid layout. You can edit titles and remove thumbnails individually.",
+  "requestFramePermissions": []
+}
