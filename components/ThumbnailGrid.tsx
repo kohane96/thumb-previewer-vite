@@ -6,47 +6,56 @@ interface ThumbnailGridProps {
   thumbnails: Thumbnail[];
   onDelete: (id: string) => void;
   onTitleChange: (id: string, newTitle: string) => void;
-  onReorder: (dragIndex: number, hoverIndex: number) => void;
+  onReorder: (thumbnails: Thumbnail[]) => void;
 }
 
 export const ThumbnailGrid: React.FC<ThumbnailGridProps> = ({ thumbnails, onDelete, onTitleChange, onReorder }) => {
-  const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
+  // To keep track of the item being dragged
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 
   const handleDragStart = (e: React.DragEvent<HTMLDivElement>, index: number) => {
-    setDraggingIndex(index);
-    // This is needed for Firefox to enable dragging
-    e.dataTransfer.setData('text/plain', '');
+    setDraggedIndex(index);
+    // This improves the visual effect for the drag operation
     e.dataTransfer.effectAllowed = 'move';
   };
-  
-  const handleDragEnter = (index: number) => {
-    if (draggingIndex === null || draggingIndex === index) {
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>, index: number) => {
+    e.preventDefault(); // This is necessary to allow dropping
+    
+    // Prevent reordering if not dragging or dragging over the same item
+    if (draggedIndex === null || draggedIndex === index) {
       return;
     }
-    onReorder(draggingIndex, index);
-    // The item is now at the `index` position, so update the dragging index
-    setDraggingIndex(index);
-  };
-
-  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault(); // This is necessary to allow dropping
+    
+    // Create a new array with the reordered items
+    const reorderedThumbnails = [...thumbnails];
+    const [draggedItem] = reorderedThumbnails.splice(draggedIndex, 1);
+    reorderedThumbnails.splice(index, 0, draggedItem);
+    
+    // Update the state in the parent component for immediate feedback
+    onReorder(reorderedThumbnails);
+    
+    // Update the dragged index to the new position
+    setDraggedIndex(index);
   };
 
   const handleDragEnd = () => {
-    setDraggingIndex(null);
+    // Reset the dragged index when the drag operation ends
+    setDraggedIndex(null);
   };
-  
+
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-8">
+    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 2xl:grid-cols-5 gap-x-4 gap-y-8">
       {thumbnails.map((thumbnail, index) => (
         <div
           key={thumbnail.id}
           draggable
           onDragStart={(e) => handleDragStart(e, index)}
-          onDragEnter={() => handleDragEnter(index)}
-          onDragOver={handleDragOver}
+          onDragOver={(e) => handleDragOver(e, index)}
           onDragEnd={handleDragEnd}
-          className={`cursor-move transition-opacity duration-200 ${draggingIndex !== null ? (draggingIndex === index ? 'opacity-40' : '') : ''}`}
+          className={`cursor-move transition-all duration-300 ${
+            draggedIndex === index ? 'opacity-40 scale-95 transform' : ''
+          }`}
         >
           <ThumbnailCard
             thumbnail={thumbnail}
