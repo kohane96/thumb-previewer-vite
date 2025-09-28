@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { Thumbnail } from '../types';
 
 interface ThumbnailCardProps {
@@ -16,20 +16,6 @@ const CloseIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
 
 export const ThumbnailCard: React.FC<ThumbnailCardProps> = ({ thumbnail, onDelete, onTitleChange }) => {
   const [isHovered, setIsHovered] = useState(false);
-  
-  const metadata = useMemo(() => {
-      const views = (Math.floor(Math.random() * 8000) + 1000);
-      const viewString = views > 10000 ? `${(views / 10000).toFixed(1)}万` : views.toLocaleString();
-      
-      const timeAgoValue = Math.floor(Math.random() * 11) + 1;
-      const timeUnit = Math.random() > 0.5 ? 'か月前' : '年前';
-      const timeAgo = `${timeAgoValue} ${timeUnit}`;
-
-      return {
-          views: `${viewString}回視聴`,
-          time: timeAgo,
-      };
-  }, []); // Empty dependency array ensures this is calculated only once per card instance.
 
   const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     onTitleChange(thumbnail.id, e.target.value);
@@ -68,10 +54,6 @@ export const ThumbnailCard: React.FC<ThumbnailCardProps> = ({ thumbnail, onDelet
             className="w-full bg-transparent text-zinc-900 font-medium text-base leading-snug p-0 border-none focus:ring-0 focus:outline-none placeholder-zinc-500"
             placeholder="Enter title"
           />
-          <div className="text-zinc-500 text-sm mt-1">
-            <p>チャンネル名</p> {/* Channel Name Placeholder */}
-            <p>{metadata.views} • {metadata.time}</p>
-          </div>
         </div>
       </div>
     </div>
