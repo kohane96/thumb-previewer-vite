@@ -44,18 +44,13 @@ export const ThumbnailCard: React.FC<ThumbnailCardProps> = ({ thumbnail, onDelet
           <CloseIcon className="w-4 h-4" />
         </button>
       </div>
-      <div className="flex items-start gap-3">
-        <div className="flex-shrink-0 w-9 h-9 rounded-full bg-zinc-300 mt-0.5"></div>
-        <div className="flex-1">
-          <input
-            type="text"
-            value={thumbnail.title}
-            onChange={handleTitleChange}
-            className="w-full bg-transparent text-zinc-900 font-medium text-base leading-snug p-0 border-none focus:ring-0 focus:outline-none placeholder-zinc-500"
-            placeholder="Enter title"
-          />
-        </div>
-      </div>
+      <input
+        type="text"
+        value={thumbnail.title}
+        onChange={handleTitleChange}
+        className="w-full bg-transparent text-zinc-900 font-medium text-base leading-snug p-0 border-none focus:ring-0 focus:outline-none placeholder-zinc-500"
+        placeholder="Enter title"
+      />
     </div>
   );
 };
