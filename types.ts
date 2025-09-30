@@ -1,6 +1,13 @@
-export interface Thumbnail {
-  id: string;
-  file: File;
+
+export interface Video {
+  id: number;
+  thumbnailUrl: string;
   title: string;
-  previewUrl: string;
+  views: string;
+  age: string;
+  duration: string;
+  channel: {
+    name: string;
+    iconUrl: string;
+  };
 }
