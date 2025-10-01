@@ -1,6 +1,11 @@
-import React, { useState, useCallback, useEffect } from 'react';
+
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Video } from './types';
 import { INITIAL_VIDEOS } from './constants';
+
+// --- Helper Functions ---
+const isMobileDevice = () => /Mobi/i.test(navigator.userAgent);
+
 
 // --- SVG Icon Components ---
 
@@ -110,150 +115,129 @@ const Footer: React.FC<{ isDarkMode: boolean }> = ({ isDarkMode }) => (
   </footer>
 );
 
+const PasteFallbackInput: React.FC<{ onPaste: (e: React.ClipboardEvent) => void; onCancel: () => void; }> = ({ onPaste, onCancel }) => {
+    const pasteAreaRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        pasteAreaRef.current?.focus();
+    }, []);
+
+    const instruction = isMobileDevice() ? 'このエリアを長押しして「ペースト」' : 'ここに Ctrl+V で貼り付け';
+
+    return (
+        <div className="flex items-center gap-2 w-full">
+            {/* Fix: The `placeholder` attribute is not valid on a `div`. It has been replaced with a `data-placeholder` attribute and styled with CSS pseudo-elements via Tailwind CSS to function as a placeholder. */}
+            <div
+                ref={pasteAreaRef}
+                onPaste={onPaste}
+                contentEditable
+                suppressContentEditableWarning
+                className="flex-1 text-sm p-2 bg-gray-50 dark:bg-gray-700 border-2 border-dashed border-indigo-400 dark:border-indigo-600 rounded-lg cursor-text focus:outline-none focus:ring-2 focus:ring-indigo-500 empty:before:content-[attr(data-placeholder)] empty:before:text-gray-500 dark:empty:before:text-gray-400"
+                aria-label={instruction}
+                data-placeholder={instruction}
+            />
+            <button
+                onClick={onCancel}
+                type="button"
+                className="px-4 py-2 text-sm font-semibold bg-gray-200 text-gray-800 rounded-full hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 transition-colors"
+            >
+                キャンセル
+            </button>
+        </div>
+    );
+};
+
 interface ControlPanelProps {
-  onThumbnailChange1: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  onThumbnailChange2: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  onThumbnailChange3: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  onPaste1: () => void;
-  onPaste2: () => void;
-  onPaste3: () => void;
+  onThumbnailChange: (index: number, e: React.ChangeEvent<HTMLInputElement>) => void;
+  onPaste: (index: number) => void;
   fileNames: string[];
   isDarkMode: boolean;
   onDarkModeToggle: () => void;
+  pasteFallbackTarget: number | null;
+  onPasteFromFallback: (e: React.ClipboardEvent) => void;
+  onCancelPasteFallback: () => void;
 }
 
 const ControlPanel: React.FC<ControlPanelProps> = ({ 
-    onThumbnailChange1, 
-    onThumbnailChange2, 
-    onThumbnailChange3, 
-    onPaste1,
-    onPaste2,
-    onPaste3,
+    onThumbnailChange, 
+    onPaste,
     fileNames,
     isDarkMode, 
-    onDarkModeToggle 
-}) => (
-  <div className={`w-full p-6 rounded-xl shadow-lg space-y-6 transition-colors duration-300 ${isDarkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white'}`}>
-    <div className="flex justify-between items-start">
-      <div>
-        <h2 className={`text-xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>YouTubeサムネイルプレビュー</h2>
-      </div>
-       <div className="flex items-center space-x-2 flex-shrink-0 ml-4">
-        <span className={`text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>ダークモード</span>
-        <button
-          onClick={onDarkModeToggle}
-          className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 ${isDarkMode ? `bg-indigo-600 focus:ring-offset-gray-800` : 'bg-gray-200 focus:ring-offset-white'}`}
-          aria-pressed={isDarkMode}
-        >
-          <span
-            className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform duration-300 ${isDarkMode ? 'translate-x-6' : 'translate-x-1'}`}
-          />
-        </button>
-      </div>
-    </div>
+    onDarkModeToggle,
+    pasteFallbackTarget,
+    onPasteFromFallback,
+    onCancelPasteFallback,
+}) => {
+    const uploaderSections = [
+        { label: 'アップロード① (大サムネ + 小サムネ1)', index: 0 },
+        { label: 'アップロード② (小サムネ2)', index: 1 },
+        { label: 'アップロード③ (小サムネ3)', index: 2 },
+    ];
     
-    <div className="space-y-4">
-      {/* --- Uploader 1 --- */}
-      <div className={`p-4 border rounded-lg space-y-3 ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-        <label className={`block text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-          アップロード① (大サムネ + 小サムネ1)
-        </label>
-        <div className="flex items-center gap-2">
-            <input
-              id="file-upload-1"
-              type="file"
-              accept="image/*"
-              onChange={onThumbnailChange1}
-              className="hidden"
-            />
-            <label
-              htmlFor="file-upload-1"
-              className="cursor-pointer whitespace-nowrap inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-semibold rounded-full text-indigo-700 bg-indigo-100 hover:bg-indigo-200 transition-colors"
-            >
-              ファイルを選択
-            </label>
-            <span className={`text-sm truncate min-w-0 flex-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                {fileNames[0] || '選択されていません'}
-            </span>
+    return (
+      <div className={`w-full p-6 rounded-xl shadow-lg space-y-6 transition-colors duration-300 ${isDarkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white'}`}>
+        <div className="flex justify-between items-start">
+          <div>
+            <h2 className={`text-xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>YouTubeサムネイルプレビュー</h2>
+          </div>
+           <div className="flex items-center space-x-2 flex-shrink-0 ml-4">
+            <span className={`text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>ダークモード</span>
             <button
-                onClick={onPaste1}
-                type="button"
-                className={`p-2 rounded-full transition-colors ${isDarkMode ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
-                aria-label="クリップボードから貼り付け①"
+              onClick={onDarkModeToggle}
+              className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 ${isDarkMode ? `bg-indigo-600 focus:ring-offset-gray-800` : 'bg-gray-200 focus:ring-offset-white'}`}
+              aria-pressed={isDarkMode}
             >
-                <ClipboardIcon className="w-5 h-5" />
+              <span
+                className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform duration-300 ${isDarkMode ? 'translate-x-6' : 'translate-x-1'}`}
+              />
             </button>
+          </div>
+        </div>
+        
+        <div className="space-y-4">
+          {uploaderSections.map(({ label, index }) => (
+              <div key={index} className={`p-4 border rounded-lg space-y-3 ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+                <label className={`block text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                  {label}
+                </label>
+                <div className="flex items-center gap-2">
+                    {pasteFallbackTarget === index ? (
+                        <PasteFallbackInput onPaste={onPasteFromFallback} onCancel={onCancelPasteFallback} />
+                    ) : (
+                        <>
+                            <input
+                              id={`file-upload-${index}`}
+                              type="file"
+                              accept="image/*"
+                              onChange={(e) => onThumbnailChange(index, e)}
+                              className="hidden"
+                            />
+                            <label
+                              htmlFor={`file-upload-${index}`}
+                              className="cursor-pointer whitespace-nowrap inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-semibold rounded-full text-indigo-700 bg-indigo-100 hover:bg-indigo-200 transition-colors"
+                            >
+                              ファイルを選択
+                            </label>
+                            <span className={`text-sm truncate min-w-0 flex-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                                {fileNames[index] || '選択されていません'}
+                            </span>
+                            <button
+                                onClick={() => onPaste(index)}
+                                type="button"
+                                className={`p-2 rounded-full transition-colors ${isDarkMode ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                                aria-label={`クリップボードから貼り付け${index + 1}`}
+                            >
+                                <ClipboardIcon className="w-5 h-5" />
+                            </button>
+                        </>
+                    )}
+                </div>
+              </div>
+          ))}
         </div>
       </div>
-
-      {/* --- Uploader 2 --- */}
-      <div className={`p-4 border rounded-lg space-y-3 ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-        <label className={`block text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-          アップロード② (小サムネ2)
-        </label>
-        <div className="flex items-center gap-2">
-            <input
-              id="file-upload-2"
-              type="file"
-              accept="image/*"
-              onChange={onThumbnailChange2}
-              className="hidden"
-            />
-            <label
-              htmlFor="file-upload-2"
-              className="cursor-pointer whitespace-nowrap inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-semibold rounded-full text-indigo-700 bg-indigo-100 hover:bg-indigo-200 transition-colors"
-            >
-              ファイルを選択
-            </label>
-            <span className={`text-sm truncate min-w-0 flex-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                {fileNames[1] || '選択されていません'}
-            </span>
-            <button
-                onClick={onPaste2}
-                type="button"
-                className={`p-2 rounded-full transition-colors ${isDarkMode ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
-                aria-label="クリップボードから貼り付け②"
-            >
-                <ClipboardIcon className="w-5 h-5" />
-            </button>
-        </div>
-      </div>
-
-      {/* --- Uploader 3 --- */}
-      <div className={`p-4 border rounded-lg space-y-3 ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-        <label className={`block text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-          アップロード③ (小サムネ3)
-        </label>
-        <div className="flex items-center gap-2">
-            <input
-              id="file-upload-3"
-              type="file"
-              accept="image/*"
-              onChange={onThumbnailChange3}
-              className="hidden"
-            />
-            <label
-              htmlFor="file-upload-3"
-              className="cursor-pointer whitespace-nowrap inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-semibold rounded-full text-indigo-700 bg-indigo-100 hover:bg-indigo-200 transition-colors"
-            >
-              ファイルを選択
-            </label>
-            <span className={`text-sm truncate min-w-0 flex-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                {fileNames[2] || '選択されていません'}
-            </span>
-            <button
-                onClick={onPaste3}
-                type="button"
-                className={`p-2 rounded-full transition-colors ${isDarkMode ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
-                aria-label="クリップボードから貼り付け③"
-            >
-                <ClipboardIcon className="w-5 h-5" />
-            </button>
-        </div>
-      </div>
-    </div>
-  </div>
-);
+    );
+};
 
 
 // --- Preview Components ---
@@ -274,7 +258,7 @@ const FeaturedVideo: React.FC<{ video: Video; onTitleChange: (newTitle: string) 
                 <CloseIcon className="w-4 h-4" />
             </button>
         )}
-        <span className="absolute bottom-1 right-1 bg-black bg-opacity-75 text-white text-xs px-1.5 py-0.5 rounded">
+        <span className="absolute bottom-1.5 right-1.5 bg-black bg-opacity-80 text-white text-[11px] font-medium px-1 py-0.5 rounded-sm">
           {video.duration}
         </span>
       </div>
@@ -323,7 +307,7 @@ const VideoItem: React.FC<{ video: Video; onTitleChange: (newTitle: string) => v
                 <CloseIcon className="w-3 h-3" />
             </button>
         )}
-          <span className="absolute bottom-1 right-1 bg-black bg-opacity-75 text-white text-xs px-1.5 py-0.5 rounded">
+          <span className="absolute bottom-1 right-1 bg-black bg-opacity-80 text-white text-[11px] font-medium px-1 py-0.5 rounded-sm">
             {video.duration}
           </span>
         </div>
@@ -384,8 +368,7 @@ const App: React.FC = () => {
   const [videos, setVideos] = useState<Video[]>(INITIAL_VIDEOS);
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [fileNames, setFileNames] = useState<string[]>(['', '', '']);
-  const [pasteTarget, setPasteTarget] = useState<number | null>(null);
-  const [isPasteOverlayVisible, setIsPasteOverlayVisible] = useState(false);
+  const [pasteFallbackTarget, setPasteFallbackTarget] = useState<number | null>(null);
 
   const updateThumbnail = useCallback((uploaderIndex: number, imageData: string) => {
     setVideos(currentVideos => {
@@ -402,11 +385,11 @@ const App: React.FC = () => {
     });
   }, []);
   
-  const handlePasteFromOverlay = useCallback((event: React.ClipboardEvent) => {
+  const handlePasteFromFallback = useCallback((event: React.ClipboardEvent) => {
     event.preventDefault();
     const items = event.clipboardData?.items;
-    if (!items || pasteTarget === null) {
-        setIsPasteOverlayVisible(false);
+    if (!items || pasteFallbackTarget === null) {
+        setPasteFallbackTarget(null);
         return;
     };
 
@@ -420,10 +403,10 @@ const App: React.FC = () => {
                 reader.onload = (e) => {
                     const imageData = e.target?.result as string;
                     if (imageData) {
-                        updateThumbnail(pasteTarget, imageData);
+                        updateThumbnail(pasteFallbackTarget, imageData);
                         setFileNames(names => {
                             const newNames = [...names];
-                            newNames[pasteTarget] = 'クリップボードから貼付';
+                            newNames[pasteFallbackTarget] = 'クリップボードから貼付';
                             return newNames;
                         });
                     }
@@ -438,12 +421,11 @@ const App: React.FC = () => {
         alert('クリップボードに画像が見つかりませんでした。');
     }
     
-    setIsPasteOverlayVisible(false);
-    setPasteTarget(null);
+    setPasteFallbackTarget(null);
 
-  }, [pasteTarget, updateThumbnail]);
+  }, [pasteFallbackTarget, updateThumbnail]);
 
-  const handleSingleThumbnailChange = useCallback((uploaderIndex: number) => (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleThumbnailChange = useCallback((uploaderIndex: number, e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       const reader = new FileReader();
@@ -462,7 +444,7 @@ const App: React.FC = () => {
     }
   }, [updateThumbnail]);
 
-  const handlePaste = useCallback((uploaderIndex: number) => async () => {
+  const handlePaste = useCallback(async (uploaderIndex: number) => {
     try {
       if (!navigator.clipboard?.read) {
         throw new Error('Clipboard API not supported');
@@ -491,8 +473,7 @@ const App: React.FC = () => {
       alert('クリップボードに画像が見つかりませんでした。');
     } catch (err) {
       console.warn('Direct clipboard read failed, falling back to paste event:', err);
-      setPasteTarget(uploaderIndex);
-      setIsPasteOverlayVisible(true);
+      setPasteFallbackTarget(uploaderIndex);
     }
   }, [updateThumbnail]);
 
@@ -555,15 +536,14 @@ const App: React.FC = () => {
       
       <div className="w-full max-w-lg lg:sticky lg:top-8">
         <ControlPanel 
-          onThumbnailChange1={handleSingleThumbnailChange(0)}
-          onThumbnailChange2={handleSingleThumbnailChange(1)}
-          onThumbnailChange3={handleSingleThumbnailChange(2)}
-          onPaste1={handlePaste(0)}
-          onPaste2={handlePaste(1)}
-          onPaste3={handlePaste(2)}
+          onThumbnailChange={handleThumbnailChange}
+          onPaste={handlePaste}
           fileNames={fileNames}
           isDarkMode={isDarkMode}
           onDarkModeToggle={() => setIsDarkMode(prev => !prev)}
+          pasteFallbackTarget={pasteFallbackTarget}
+          onPasteFromFallback={handlePasteFromFallback}
+          onCancelPasteFallback={() => setPasteFallbackTarget(null)}
         />
       </div>
 
@@ -592,43 +572,6 @@ const App: React.FC = () => {
             </div>
           </main>
       </AppShell>
-      
-      {isPasteOverlayVisible && (
-            <div 
-                className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4"
-                onClick={() => {
-                  setIsPasteOverlayVisible(false);
-                  setPasteTarget(null);
-                }} 
-            >
-                <div 
-                    className="bg-white rounded-xl shadow-2xl p-6 text-center w-full max-w-sm"
-                    onClick={(e) => e.stopPropagation()} 
-                >
-                    <h3 className="text-lg font-bold text-gray-800 mb-2">画像をペースト</h3>
-                    <p className="text-gray-600 mb-4 text-sm">
-                        このエリアを長押しして「ペースト」を選択してください。
-                    </p>
-                    <div
-                        onPaste={handlePasteFromOverlay}
-                        contentEditable
-                        suppressContentEditableWarning
-                        className="w-full h-32 bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center text-gray-500 cursor-text focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        role="textbox"
-                        aria-label="ペーストエリア"
-                    />
-                    <button 
-                        onClick={() => {
-                          setIsPasteOverlayVisible(false);
-                          setPasteTarget(null);
-                        }} 
-                        className="mt-4 w-full px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors font-semibold"
-                    >
-                        キャンセル
-                    </button>
-                </div>
-            </div>
-        )}
     </div>
   );
 };
