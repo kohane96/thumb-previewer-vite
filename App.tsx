@@ -118,6 +118,7 @@ interface ControlPanelProps {
   onPaste1: () => void;
   onPaste2: () => void;
   onPaste3: () => void;
+  fileNames: string[];
   isDarkMode: boolean;
   onDarkModeToggle: () => void;
 }
@@ -129,6 +130,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     onPaste1,
     onPaste2,
     onPaste3,
+    fileNames,
     isDarkMode, 
     onDarkModeToggle 
 }) => (
@@ -136,9 +138,6 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     <div className="flex justify-between items-start">
       <div>
         <h2 className={`text-xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>YouTubeサムネイルプレビュー</h2>
-        <p className={`text-sm mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-          サムネイルをアップロードまたはペーストしてプレビューします。プレビュー内の動画タイトルをクリックすると直接編集できます。
-        </p>
       </div>
        <div className="flex items-center space-x-2 flex-shrink-0 ml-4">
         <span className={`text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>ダークモード</span>
@@ -162,11 +161,21 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
         </label>
         <div className="flex items-center gap-2">
             <input
+              id="file-upload-1"
               type="file"
               accept="image/*"
               onChange={onThumbnailChange1}
-              className="flex-1 min-w-0 text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+              className="hidden"
             />
+            <label
+              htmlFor="file-upload-1"
+              className="cursor-pointer whitespace-nowrap inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-semibold rounded-full text-indigo-700 bg-indigo-100 hover:bg-indigo-200 transition-colors"
+            >
+              ファイルを選択
+            </label>
+            <span className={`text-sm truncate min-w-0 flex-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                {fileNames[0] || '選択されていません'}
+            </span>
             <button
                 onClick={onPaste1}
                 type="button"
@@ -185,11 +194,21 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
         </label>
         <div className="flex items-center gap-2">
             <input
+              id="file-upload-2"
               type="file"
               accept="image/*"
               onChange={onThumbnailChange2}
-              className="flex-1 min-w-0 text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+              className="hidden"
             />
+            <label
+              htmlFor="file-upload-2"
+              className="cursor-pointer whitespace-nowrap inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-semibold rounded-full text-indigo-700 bg-indigo-100 hover:bg-indigo-200 transition-colors"
+            >
+              ファイルを選択
+            </label>
+            <span className={`text-sm truncate min-w-0 flex-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                {fileNames[1] || '選択されていません'}
+            </span>
             <button
                 onClick={onPaste2}
                 type="button"
@@ -208,11 +227,21 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
         </label>
         <div className="flex items-center gap-2">
             <input
+              id="file-upload-3"
               type="file"
               accept="image/*"
               onChange={onThumbnailChange3}
-              className="flex-1 min-w-0 text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+              className="hidden"
             />
+            <label
+              htmlFor="file-upload-3"
+              className="cursor-pointer whitespace-nowrap inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-semibold rounded-full text-indigo-700 bg-indigo-100 hover:bg-indigo-200 transition-colors"
+            >
+              ファイルを選択
+            </label>
+            <span className={`text-sm truncate min-w-0 flex-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                {fileNames[2] || '選択されていません'}
+            </span>
             <button
                 onClick={onPaste3}
                 type="button"
@@ -355,6 +384,8 @@ const AppShell: React.FC<{ children: React.ReactNode; isDarkMode: boolean; }> = 
 const App: React.FC = () => {
   const [videos, setVideos] = useState<Video[]>(INITIAL_VIDEOS);
   const [isDarkMode, setIsDarkMode] = useState(true);
+  const [fileNames, setFileNames] = useState<string[]>(['', '', '']);
+
 
   const updateThumbnail = (index: number, imageData: string) => {
     setVideos(currentVideos => {
@@ -374,6 +405,11 @@ const App: React.FC = () => {
         const imageData = event.target?.result as string;
         if (imageData) {
           updateThumbnail(index, imageData);
+          setFileNames(names => {
+            const newNames = [...names];
+            newNames[index] = file.name;
+            return newNames;
+          });
         }
       };
       reader.readAsDataURL(file);
@@ -396,6 +432,11 @@ const App: React.FC = () => {
             const imageData = event.target?.result as string;
             if (imageData) {
               updateThumbnail(index, imageData);
+              setFileNames(names => {
+                const newNames = [...names];
+                newNames[index] = 'クリップボードから貼付';
+                return newNames;
+              });
             }
           };
           reader.readAsDataURL(blob);
@@ -419,6 +460,8 @@ const App: React.FC = () => {
   }, []);
 
   const handleThumbnailDelete = useCallback((videoId: number) => {
+    const videoIndex = videos.findIndex(v => v.id === videoId);
+
     setVideos(currentVideos => {
         const originalVideo = INITIAL_VIDEOS.find(v => v.id === videoId);
         if (!originalVideo) return currentVideos; 
@@ -429,7 +472,15 @@ const App: React.FC = () => {
                 : video
         );
     });
-  }, []);
+
+    if (videoIndex !== -1 && videoIndex < 3) {
+      setFileNames(currentFileNames => {
+        const newFileNames = [...currentFileNames];
+        newFileNames[videoIndex] = '';
+        return newFileNames;
+      });
+    }
+  }, [videos]);
 
 
   return (
@@ -443,6 +494,7 @@ const App: React.FC = () => {
           onPaste1={handlePaste(0)}
           onPaste2={handlePaste(1)}
           onPaste3={handlePaste(2)}
+          fileNames={fileNames}
           isDarkMode={isDarkMode}
           onDarkModeToggle={() => setIsDarkMode(prev => !prev)}
         />
