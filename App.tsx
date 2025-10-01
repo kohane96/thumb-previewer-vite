@@ -54,6 +54,12 @@ const CloseIcon: React.FC<{ className?: string }> = ({ className }) => (
     </svg>
 );
 
+const ClipboardIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 0 0 2.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 0 0-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75 2.25 2.25 0 0 0-.1-.664m-5.8 0A2.251 2.251 0 0 1 6.45 3.75H4.5a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 4.5 21h9a2.25 2.25 0 0 0 2.25-2.25V9.75M15 3.75H9" />
+  </svg>
+);
+
 
 // --- Reusable UI Components ---
 
@@ -109,9 +115,9 @@ interface ControlPanelProps {
   onThumbnailChange1: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onThumbnailChange2: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onThumbnailChange3: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  onPaste1: (e: React.ClipboardEvent<HTMLDivElement>) => void;
-  onPaste2: (e: React.ClipboardEvent<HTMLDivElement>) => void;
-  onPaste3: (e: React.ClipboardEvent<HTMLDivElement>) => void;
+  onPaste1: () => void;
+  onPaste2: () => void;
+  onPaste3: () => void;
   isDarkMode: boolean;
   onDarkModeToggle: () => void;
 }
@@ -131,7 +137,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
       <div>
         <h2 className={`text-xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>YouTubeサムネイルプレビュー</h2>
         <p className={`text-sm mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-          サムネイルをアップロードしてプレビューします。プレビュー内の動画タイトルをクリックすると直接編集できます。
+          サムネイルをアップロードまたはペーストしてプレビューします。プレビュー内の動画タイトルをクリックすると直接編集できます。
         </p>
       </div>
        <div className="flex items-center space-x-2 flex-shrink-0 ml-4">
@@ -150,63 +156,72 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     
     <div className="space-y-4">
       {/* --- Uploader 1 --- */}
-      <div 
-        onPaste={onPaste1}
-        tabIndex={0}
-        className={`p-4 border-2 border-dashed rounded-lg space-y-3 cursor-pointer transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 ${isDarkMode ? 'border-gray-600 hover:border-indigo-400 focus:ring-offset-gray-800' : 'border-gray-300 hover:border-indigo-500 focus:ring-offset-white'}`}
-      >
+      <div className={`p-4 border rounded-lg space-y-3 ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
         <label className={`block text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
           アップロード① (大サムネ + 小サムネ1)
         </label>
-        <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-          ファイルを選択するか、このエリアに画像をペーストしてください。
-        </p>
-        <input
-          type="file"
-          accept="image/*"
-          onChange={onThumbnailChange1}
-          className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
-        />
+        <div className="flex items-center gap-2">
+            <input
+              type="file"
+              accept="image/*"
+              onChange={onThumbnailChange1}
+              className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+            />
+            <button
+                onClick={onPaste1}
+                type="button"
+                className={`p-2 rounded-full transition-colors ${isDarkMode ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                aria-label="クリップボードから貼り付け①"
+            >
+                <ClipboardIcon className="w-5 h-5" />
+            </button>
+        </div>
       </div>
 
       {/* --- Uploader 2 --- */}
-      <div 
-        onPaste={onPaste2}
-        tabIndex={0}
-        className={`p-4 border-2 border-dashed rounded-lg space-y-3 cursor-pointer transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 ${isDarkMode ? 'border-gray-600 hover:border-indigo-400 focus:ring-offset-gray-800' : 'border-gray-300 hover:border-indigo-500 focus:ring-offset-white'}`}
-      >
+      <div className={`p-4 border rounded-lg space-y-3 ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
         <label className={`block text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
           アップロード② (小サムネ2)
         </label>
-         <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-          ファイルを選択するか、このエリアに画像をペーストしてください。
-        </p>
-        <input
-          type="file"
-          accept="image/*"
-          onChange={onThumbnailChange2}
-          className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
-        />
+        <div className="flex items-center gap-2">
+            <input
+              type="file"
+              accept="image/*"
+              onChange={onThumbnailChange2}
+              className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+            />
+            <button
+                onClick={onPaste2}
+                type="button"
+                className={`p-2 rounded-full transition-colors ${isDarkMode ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                aria-label="クリップボードから貼り付け②"
+            >
+                <ClipboardIcon className="w-5 h-5" />
+            </button>
+        </div>
       </div>
 
       {/* --- Uploader 3 --- */}
-      <div 
-        onPaste={onPaste3}
-        tabIndex={0}
-        className={`p-4 border-2 border-dashed rounded-lg space-y-3 cursor-pointer transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 ${isDarkMode ? 'border-gray-600 hover:border-indigo-400 focus:ring-offset-gray-800' : 'border-gray-300 hover:border-indigo-500 focus:ring-offset-white'}`}
-      >
+      <div className={`p-4 border rounded-lg space-y-3 ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
         <label className={`block text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
           アップロード③ (小サムネ3)
         </label>
-         <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-          ファイルを選択するか、このエリアに画像をペーストしてください。
-        </p>
-        <input
-          type="file"
-          accept="image/*"
-          onChange={onThumbnailChange3}
-          className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
-        />
+        <div className="flex items-center gap-2">
+            <input
+              type="file"
+              accept="image/*"
+              onChange={onThumbnailChange3}
+              className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+            />
+            <button
+                onClick={onPaste3}
+                type="button"
+                className={`p-2 rounded-full transition-colors ${isDarkMode ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                aria-label="クリップボードから貼り付け③"
+            >
+                <ClipboardIcon className="w-5 h-5" />
+            </button>
+        </div>
       </div>
     </div>
   </div>
@@ -340,6 +355,16 @@ const AppShell: React.FC<{ children: React.ReactNode; isDarkMode: boolean; }> = 
 const App: React.FC = () => {
   const [videos, setVideos] = useState<Video[]>(INITIAL_VIDEOS);
   const [isDarkMode, setIsDarkMode] = useState(true);
+
+  const updateThumbnail = (index: number, imageData: string) => {
+    setVideos(currentVideos => {
+      const newVideos = [...currentVideos];
+      if (index < newVideos.length) {
+        newVideos[index] = { ...newVideos[index], thumbnailUrl: imageData };
+      }
+      return newVideos;
+    });
+  };
   
   const handleSingleThumbnailChange = useCallback((index: number) => (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -348,45 +373,42 @@ const App: React.FC = () => {
       reader.onload = (event) => {
         const imageData = event.target?.result as string;
         if (imageData) {
-          setVideos(currentVideos => {
-            const newVideos = [...currentVideos];
-            if (index < newVideos.length) {
-              newVideos[index] = { ...newVideos[index], thumbnailUrl: imageData };
-            }
-            return newVideos;
-          });
+          updateThumbnail(index, imageData);
         }
       };
       reader.readAsDataURL(file);
     }
   }, []);
 
-  const handleThumbnailPaste = useCallback((index: number) => (e: React.ClipboardEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    const items = e.clipboardData.items;
-    for (let i = 0; i < items.length; i++) {
-        if (items[i].type.indexOf('image') !== -1) {
-            const file = items[i].getAsFile();
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = (event) => {
-                    const imageData = event.target?.result as string;
-                    if (imageData) {
-                        setVideos(currentVideos => {
-                            const newVideos = [...currentVideos];
-                            if (index < newVideos.length) {
-                                newVideos[index] = { ...newVideos[index], thumbnailUrl: imageData };
-                            }
-                            return newVideos;
-                        });
-                    }
-                };
-                reader.readAsDataURL(file);
+  const handlePaste = useCallback((index: number) => async () => {
+    try {
+      if (!navigator.clipboard?.read) {
+        alert('クリップボードAPIはこのブラウザでサポートされていません。');
+        return;
+      }
+      const clipboardItems = await navigator.clipboard.read();
+      for (const item of clipboardItems) {
+        const imageType = item.types.find(type => type.startsWith('image/'));
+        if (imageType) {
+          const blob = await item.getType(imageType);
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            const imageData = event.target?.result as string;
+            if (imageData) {
+              updateThumbnail(index, imageData);
             }
-            break; // We only handle the first image found
+          };
+          reader.readAsDataURL(blob);
+          return; 
         }
+      }
+      alert('クリップボードに画像が見つかりませんでした。');
+    } catch (err) {
+      console.error('クリップボードの読み取りに失敗しました:', err);
+      alert('クリップボードへのアクセスが拒否されたか、エラーが発生しました。');
     }
   }, []);
+
 
   const handleTitleChangeById = useCallback((videoId: number, newTitle: string) => {
     setVideos(currentVideos => 
@@ -418,9 +440,9 @@ const App: React.FC = () => {
           onThumbnailChange1={handleSingleThumbnailChange(0)}
           onThumbnailChange2={handleSingleThumbnailChange(1)}
           onThumbnailChange3={handleSingleThumbnailChange(2)}
-          onPaste1={handleThumbnailPaste(0)}
-          onPaste2={handleThumbnailPaste(1)}
-          onPaste3={handleThumbnailPaste(2)}
+          onPaste1={handlePaste(0)}
+          onPaste2={handlePaste(1)}
+          onPaste3={handlePaste(2)}
           isDarkMode={isDarkMode}
           onDarkModeToggle={() => setIsDarkMode(prev => !prev)}
         />
