@@ -1,5 +1,5 @@
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Video } from './types';
 import { INITIAL_VIDEOS } from './constants';
 
@@ -385,17 +385,91 @@ const App: React.FC = () => {
   const [videos, setVideos] = useState<Video[]>(INITIAL_VIDEOS);
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [fileNames, setFileNames] = useState<string[]>(['', '', '']);
+  const [pasteTarget, setPasteTarget] = useState<number | null>(null);
 
-
-  const updateThumbnail = (index: number, imageData: string) => {
+  const updateThumbnail = useCallback((index: number, imageData: string) => {
     setVideos(currentVideos => {
       const newVideos = [...currentVideos];
-      if (index < newVideos.length) {
+      if (index >= 0 && index < newVideos.length) {
         newVideos[index] = { ...newVideos[index], thumbnailUrl: imageData };
       }
       return newVideos;
     });
-  };
+  }, []);
+
+  useEffect(() => {
+    if (pasteTarget === null) return;
+
+    const pasteInstruction = document.createElement('div');
+    pasteInstruction.textContent = 'クリップボードの画像をペーストしてください (画面を長押しなど)';
+    Object.assign(pasteInstruction.style, {
+        position: 'fixed',
+        bottom: '20px',
+        left: '50%',
+        transform: 'translateX(-50%)',
+        padding: '10px 20px',
+        background: 'rgba(0, 0, 0, 0.8)',
+        color: 'white',
+        borderRadius: '8px',
+        zIndex: '1000',
+        fontSize: '14px',
+        textAlign: 'center',
+        boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+    });
+    document.body.appendChild(pasteInstruction);
+    
+    const handlePasteEvent = (event: ClipboardEvent) => {
+        event.preventDefault();
+        const items = event.clipboardData?.items;
+        if (!items) {
+            setPasteTarget(null);
+            return;
+        };
+
+        let imageFound = false;
+        for (let i = 0; i < items.length; i++) {
+            if (items[i].type.indexOf('image') !== -1) {
+                const blob = items[i].getAsFile();
+                if (blob) {
+                    imageFound = true;
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        const imageData = e.target?.result as string;
+                        if (imageData && pasteTarget !== null) {
+                            updateThumbnail(pasteTarget, imageData);
+                            setFileNames(names => {
+                                const newNames = [...names];
+                                newNames[pasteTarget] = 'クリップボードから貼付';
+                                return newNames;
+                            });
+                        }
+                    };
+                    reader.readAsDataURL(blob);
+                }
+                break; 
+            }
+        }
+        
+        if (!imageFound) {
+            alert('クリップボードに画像が見つかりませんでした。');
+        }
+        setPasteTarget(null);
+    };
+
+    document.addEventListener('paste', handlePasteEvent);
+    
+    const timeoutId = setTimeout(() => {
+        setPasteTarget(null);
+    }, 10000);
+
+    return () => {
+        document.removeEventListener('paste', handlePasteEvent);
+        if (document.body.contains(pasteInstruction)) {
+            document.body.removeChild(pasteInstruction);
+        }
+        clearTimeout(timeoutId);
+    };
+}, [pasteTarget, updateThumbnail]);
   
   const handleSingleThumbnailChange = useCallback((index: number) => (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -414,41 +488,40 @@ const App: React.FC = () => {
       };
       reader.readAsDataURL(file);
     }
-  }, []);
+  }, [updateThumbnail]);
 
   const handlePaste = useCallback((index: number) => async () => {
     try {
       if (!navigator.clipboard?.read) {
-        alert('クリップボードAPIはこのブラウザでサポートされていません。');
-        return;
+        throw new Error('Clipboard API not supported');
       }
       const clipboardItems = await navigator.clipboard.read();
-      for (const item of clipboardItems) {
-        const imageType = item.types.find(type => type.startsWith('image/'));
-        if (imageType) {
-          const blob = await item.getType(imageType);
-          const reader = new FileReader();
-          reader.onload = (event) => {
-            const imageData = event.target?.result as string;
-            if (imageData) {
-              updateThumbnail(index, imageData);
-              setFileNames(names => {
-                const newNames = [...names];
-                newNames[index] = 'クリップボードから貼付';
-                return newNames;
-              });
-            }
-          };
-          reader.readAsDataURL(blob);
-          return; 
-        }
+      const imageItem = clipboardItems.find(item => item.types.some(type => type.startsWith('image/')));
+      
+      if (imageItem) {
+        const imageType = imageItem.types.find(type => type.startsWith('image/'))!;
+        const blob = await imageItem.getType(imageType);
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const imageData = event.target?.result as string;
+          if (imageData) {
+            updateThumbnail(index, imageData);
+            setFileNames(names => {
+              const newNames = [...names];
+              newNames[index] = 'クリップボードから貼付';
+              return newNames;
+            });
+          }
+        };
+        reader.readAsDataURL(blob);
+        return;
       }
       alert('クリップボードに画像が見つかりませんでした。');
     } catch (err) {
-      console.error('クリップボードの読み取りに失敗しました:', err);
-      alert('クリップボードへのアクセスが拒否されたか、エラーが発生しました。');
+      console.warn('Direct clipboard read failed, falling back to paste event:', err);
+      setPasteTarget(index);
     }
-  }, []);
+  }, [updateThumbnail]);
 
 
   const handleTitleChangeById = useCallback((videoId: number, newTitle: string) => {
