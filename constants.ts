@@ -33,4 +33,13 @@ export const INITIAL_VIDEOS: Video[] = [
     duration: '20:11',
     channel: DEFAULT_CHANNEL,
   },
+  {
+    id: 4,
+    thumbnailUrl: 'https://picsum.photos/seed/city/320/180',
+    title: 'ここに動画タイトルが入ります',
+    views: '1.2万',
+    age: '1年前',
+    duration: '15:55',
+    channel: DEFAULT_CHANNEL,
+  },
 ];

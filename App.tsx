@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useEffect } from 'react';
 import { Video } from './types';
 import { INITIAL_VIDEOS } from './constants';
@@ -386,102 +385,75 @@ const App: React.FC = () => {
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [fileNames, setFileNames] = useState<string[]>(['', '', '']);
   const [pasteTarget, setPasteTarget] = useState<number | null>(null);
+  const [isPasteOverlayVisible, setIsPasteOverlayVisible] = useState(false);
 
-  const updateThumbnail = useCallback((index: number, imageData: string) => {
+  const updateThumbnail = useCallback((uploaderIndex: number, imageData: string) => {
     setVideos(currentVideos => {
       const newVideos = [...currentVideos];
-      if (index >= 0 && index < newVideos.length) {
-        newVideos[index] = { ...newVideos[index], thumbnailUrl: imageData };
+      if (uploaderIndex === 0) { // Uploader 1 -> videos[0] and videos[1]
+        if (newVideos.length > 0) newVideos[0] = { ...newVideos[0], thumbnailUrl: imageData };
+        if (newVideos.length > 1) newVideos[1] = { ...newVideos[1], thumbnailUrl: imageData };
+      } else if (uploaderIndex === 1) { // Uploader 2 -> videos[2]
+        if (newVideos.length > 2) newVideos[2] = { ...newVideos[2], thumbnailUrl: imageData };
+      } else if (uploaderIndex === 2) { // Uploader 3 -> videos[3]
+        if (newVideos.length > 3) newVideos[3] = { ...newVideos[3], thumbnailUrl: imageData };
       }
       return newVideos;
     });
   }, []);
-
-  useEffect(() => {
-    if (pasteTarget === null) return;
-
-    const pasteInstruction = document.createElement('div');
-    pasteInstruction.textContent = 'クリップボードの画像をペーストしてください (画面を長押しなど)';
-    Object.assign(pasteInstruction.style, {
-        position: 'fixed',
-        bottom: '20px',
-        left: '50%',
-        transform: 'translateX(-50%)',
-        padding: '10px 20px',
-        background: 'rgba(0, 0, 0, 0.8)',
-        color: 'white',
-        borderRadius: '8px',
-        zIndex: '1000',
-        fontSize: '14px',
-        textAlign: 'center',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-    });
-    document.body.appendChild(pasteInstruction);
-    
-    const handlePasteEvent = (event: ClipboardEvent) => {
-        event.preventDefault();
-        const items = event.clipboardData?.items;
-        if (!items) {
-            setPasteTarget(null);
-            return;
-        };
-
-        let imageFound = false;
-        for (let i = 0; i < items.length; i++) {
-            if (items[i].type.indexOf('image') !== -1) {
-                const blob = items[i].getAsFile();
-                if (blob) {
-                    imageFound = true;
-                    const reader = new FileReader();
-                    reader.onload = (e) => {
-                        const imageData = e.target?.result as string;
-                        if (imageData && pasteTarget !== null) {
-                            updateThumbnail(pasteTarget, imageData);
-                            setFileNames(names => {
-                                const newNames = [...names];
-                                newNames[pasteTarget] = 'クリップボードから貼付';
-                                return newNames;
-                            });
-                        }
-                    };
-                    reader.readAsDataURL(blob);
-                }
-                break; 
-            }
-        }
-        
-        if (!imageFound) {
-            alert('クリップボードに画像が見つかりませんでした。');
-        }
-        setPasteTarget(null);
-    };
-
-    document.addEventListener('paste', handlePasteEvent);
-    
-    const timeoutId = setTimeout(() => {
-        setPasteTarget(null);
-    }, 10000);
-
-    return () => {
-        document.removeEventListener('paste', handlePasteEvent);
-        if (document.body.contains(pasteInstruction)) {
-            document.body.removeChild(pasteInstruction);
-        }
-        clearTimeout(timeoutId);
-    };
-}, [pasteTarget, updateThumbnail]);
   
-  const handleSingleThumbnailChange = useCallback((index: number) => (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePasteFromOverlay = useCallback((event: React.ClipboardEvent) => {
+    event.preventDefault();
+    const items = event.clipboardData?.items;
+    if (!items || pasteTarget === null) {
+        setIsPasteOverlayVisible(false);
+        return;
+    };
+
+    let imageFound = false;
+    for (let i = 0; i < items.length; i++) {
+        if (items[i].type.indexOf('image') !== -1) {
+            const blob = items[i].getAsFile();
+            if (blob) {
+                imageFound = true;
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const imageData = e.target?.result as string;
+                    if (imageData) {
+                        updateThumbnail(pasteTarget, imageData);
+                        setFileNames(names => {
+                            const newNames = [...names];
+                            newNames[pasteTarget] = 'クリップボードから貼付';
+                            return newNames;
+                        });
+                    }
+                };
+                reader.readAsDataURL(blob);
+            }
+            break; 
+        }
+    }
+    
+    if (!imageFound) {
+        alert('クリップボードに画像が見つかりませんでした。');
+    }
+    
+    setIsPasteOverlayVisible(false);
+    setPasteTarget(null);
+
+  }, [pasteTarget, updateThumbnail]);
+
+  const handleSingleThumbnailChange = useCallback((uploaderIndex: number) => (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       const reader = new FileReader();
       reader.onload = (event) => {
         const imageData = event.target?.result as string;
         if (imageData) {
-          updateThumbnail(index, imageData);
+          updateThumbnail(uploaderIndex, imageData);
           setFileNames(names => {
             const newNames = [...names];
-            newNames[index] = file.name;
+            newNames[uploaderIndex] = file.name;
             return newNames;
           });
         }
@@ -490,7 +462,7 @@ const App: React.FC = () => {
     }
   }, [updateThumbnail]);
 
-  const handlePaste = useCallback((index: number) => async () => {
+  const handlePaste = useCallback((uploaderIndex: number) => async () => {
     try {
       if (!navigator.clipboard?.read) {
         throw new Error('Clipboard API not supported');
@@ -505,10 +477,10 @@ const App: React.FC = () => {
         reader.onload = (event) => {
           const imageData = event.target?.result as string;
           if (imageData) {
-            updateThumbnail(index, imageData);
+            updateThumbnail(uploaderIndex, imageData);
             setFileNames(names => {
               const newNames = [...names];
-              newNames[index] = 'クリップボードから貼付';
+              newNames[uploaderIndex] = 'クリップボードから貼付';
               return newNames;
             });
           }
@@ -519,7 +491,8 @@ const App: React.FC = () => {
       alert('クリップボードに画像が見つかりませんでした。');
     } catch (err) {
       console.warn('Direct clipboard read failed, falling back to paste event:', err);
-      setPasteTarget(index);
+      setPasteTarget(uploaderIndex);
+      setIsPasteOverlayVisible(true);
     }
   }, [updateThumbnail]);
 
@@ -534,32 +507,53 @@ const App: React.FC = () => {
 
   const handleThumbnailDelete = useCallback((videoId: number) => {
     const videoIndex = videos.findIndex(v => v.id === videoId);
-
+    const originalVideo = INITIAL_VIDEOS.find(v => v.id === videoId);
+    if (!originalVideo) return;
+    
     setVideos(currentVideos => {
-        const originalVideo = INITIAL_VIDEOS.find(v => v.id === videoId);
-        if (!originalVideo) return currentVideos; 
-        
-        return currentVideos.map(video =>
-            video.id === videoId
-                ? { ...video, thumbnailUrl: originalVideo.thumbnailUrl }
-                : video
-        );
+        let newVideos = [...currentVideos];
+        if (videoId === videos[0].id) {
+            const originalFeatured = INITIAL_VIDEOS.find(v => v.id === videos[0].id);
+            const originalSecond = INITIAL_VIDEOS.find(v => v.id === videos[1].id);
+            if(originalFeatured) newVideos[0] = { ...newVideos[0], thumbnailUrl: originalFeatured.thumbnailUrl };
+            if(originalSecond) newVideos[1] = { ...newVideos[1], thumbnailUrl: originalSecond.thumbnailUrl };
+        } else {
+             newVideos = newVideos.map(video =>
+                video.id === videoId
+                    ? { ...video, thumbnailUrl: originalVideo.thumbnailUrl }
+                    : video
+            );
+        }
+        return newVideos;
     });
 
-    if (videoIndex !== -1 && videoIndex < 3) {
-      setFileNames(currentFileNames => {
-        const newFileNames = [...currentFileNames];
-        newFileNames[videoIndex] = '';
-        return newFileNames;
-      });
+    // Reset corresponding file name
+    if (videoIndex === 0 || videoIndex === 1) { // Uploader 1
+        setFileNames(currentFileNames => {
+            const newFileNames = [...currentFileNames];
+            newFileNames[0] = '';
+            return newFileNames;
+        });
+    } else if (videoIndex === 2) { // Uploader 2
+        setFileNames(currentFileNames => {
+            const newFileNames = [...currentFileNames];
+            newFileNames[1] = '';
+            return newFileNames;
+        });
+    } else if (videoIndex === 3) { // Uploader 3
+        setFileNames(currentFileNames => {
+            const newFileNames = [...currentFileNames];
+            newFileNames[2] = '';
+            return newFileNames;
+        });
     }
   }, [videos]);
 
 
   return (
-    <div className={`min-h-screen flex flex-col items-center p-4 sm:p-8 gap-8 transition-colors duration-300 ${isDarkMode ? 'bg-gray-900' : 'bg-slate-100'}`}>
+    <div className={`min-h-screen flex flex-col lg:flex-row items-center lg:items-start justify-center p-4 sm:p-8 gap-8 transition-colors duration-300 ${isDarkMode ? 'bg-gray-900' : 'bg-slate-100'}`}>
       
-      <div className="w-full max-w-lg">
+      <div className="w-full max-w-lg lg:sticky lg:top-8">
         <ControlPanel 
           onThumbnailChange1={handleSingleThumbnailChange(0)}
           onThumbnailChange2={handleSingleThumbnailChange(1)}
@@ -586,7 +580,7 @@ const App: React.FC = () => {
             
             <div className="px-1 pt-2">
                 <h2 className={`font-medium text-lg px-2 my-2 ${isDarkMode ? 'text-white' : 'text-black'}`}>人気の動画</h2>
-                {videos.map((video) => (
+                {videos.slice(1).map((video) => (
                     <VideoItem 
                       key={video.id} 
                       video={video} 
@@ -599,6 +593,42 @@ const App: React.FC = () => {
           </main>
       </AppShell>
       
+      {isPasteOverlayVisible && (
+            <div 
+                className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4"
+                onClick={() => {
+                  setIsPasteOverlayVisible(false);
+                  setPasteTarget(null);
+                }} 
+            >
+                <div 
+                    className="bg-white rounded-xl shadow-2xl p-6 text-center w-full max-w-sm"
+                    onClick={(e) => e.stopPropagation()} 
+                >
+                    <h3 className="text-lg font-bold text-gray-800 mb-2">画像をペースト</h3>
+                    <p className="text-gray-600 mb-4 text-sm">
+                        このエリアを長押しして「ペースト」を選択してください。
+                    </p>
+                    <div
+                        onPaste={handlePasteFromOverlay}
+                        contentEditable
+                        suppressContentEditableWarning
+                        className="w-full h-32 bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center text-gray-500 cursor-text focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        role="textbox"
+                        aria-label="ペーストエリア"
+                    />
+                    <button 
+                        onClick={() => {
+                          setIsPasteOverlayVisible(false);
+                          setPasteTarget(null);
+                        }} 
+                        className="mt-4 w-full px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors font-semibold"
+                    >
+                        キャンセル
+                    </button>
+                </div>
+            </div>
+        )}
     </div>
   );
 };
