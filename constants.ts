@@ -1,7 +1,7 @@
 import { Video } from './types';
 
 const DEFAULT_CHANNEL = {
-  name: 'ほにゃららCH',
+  name: 'チャンネル名',
   iconUrl: 'https://picsum.photos/seed/channel_icon/48/48',
 };
 

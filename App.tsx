@@ -1,11 +1,12 @@
 
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useRef, forwardRef } from 'react';
 import { Video } from './types';
 import { INITIAL_VIDEOS } from './constants';
 
+declare const html2canvas: any;
+
 // --- Helper Functions ---
 const isMobileDevice = () => /Mobi/i.test(navigator.userAgent);
-
 
 // --- SVG Icon Components ---
 
@@ -64,13 +65,146 @@ const ClipboardIcon: React.FC<{ className?: string }> = ({ className }) => (
   </svg>
 );
 
+const CameraIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.776 48.776 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" />
+    <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0ZM18.75 10.5h.008v.008h-.008V10.5Z" />
+  </svg>
+);
+
 
 // --- Reusable UI Components ---
 
-const Header: React.FC<{ isDarkMode: boolean }> = ({ isDarkMode }) => (
+interface EditableFieldProps {
+    value: string;
+    onChange: (newValue: string) => void;
+    className?: string;
+    inputClassName?: string;
+    ariaLabel: string;
+}
+
+const EditableField: React.FC<EditableFieldProps> = ({ value, onChange, className, inputClassName, ariaLabel }) => {
+    const [isEditing, setIsEditing] = useState(false);
+    const inputRef = useRef<HTMLInputElement>(null);
+
+    useEffect(() => {
+        if (isEditing) {
+            inputRef.current?.focus();
+            inputRef.current?.select();
+        }
+    }, [isEditing]);
+    
+    const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+        setIsEditing(false);
+        if (e.target.value !== value) {
+            onChange(e.target.value);
+        }
+    };
+
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'Enter' || e.key === 'Escape') {
+            (e.target as HTMLInputElement).blur();
+        }
+    };
+
+    if (isEditing) {
+        return (
+            <input
+                ref={inputRef}
+                type="text"
+                defaultValue={value}
+                onBlur={handleBlur}
+                onKeyDown={handleKeyDown}
+                className={inputClassName || className}
+                aria-label={ariaLabel}
+            />
+        );
+    }
+
+    return <div onClick={() => setIsEditing(true)} className={className}>{value}</div>;
+};
+
+interface EditableTitleProps {
+  title: string;
+  onTitleChange: (newTitle: string) => void;
+  className?: string;
+}
+
+const EditableTitle: React.FC<EditableTitleProps> = ({ title, onTitleChange, className }) => {
+    const [isEditing, setIsEditing] = useState(false);
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
+    
+    useEffect(() => {
+        if (isEditing && textareaRef.current) {
+            const textarea = textareaRef.current;
+            textarea.focus();
+            textarea.select();
+            textarea.style.height = 'auto';
+            textarea.style.height = `${textarea.scrollHeight}px`;
+        }
+    }, [isEditing]);
+    
+    const handleBlur = (e: React.FocusEvent<HTMLTextAreaElement>) => {
+        setIsEditing(false);
+        if (e.target.value !== title) {
+            onTitleChange(e.target.value);
+        }
+    };
+    
+    const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+        const textarea = e.target;
+        textarea.style.height = 'auto';
+        textarea.style.height = `${textarea.scrollHeight}px`;
+    };
+
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            (e.target as HTMLTextAreaElement).blur();
+        }
+        if (e.key === 'Escape') {
+            (e.target as HTMLTextAreaElement).value = title;
+            (e.target as HTMLTextAreaElement).blur();
+        }
+    };
+
+    if (isEditing) {
+        const textareaClassName = `${className} resize-none w-full block overflow-hidden bg-transparent focus:outline-none focus:ring-2 focus:ring-indigo-500`
+            .replace(/line-clamp-\d+/g, '')
+            .replace(/cursor-text/g, '');
+
+        return (
+            <textarea
+                ref={textareaRef}
+                defaultValue={title}
+                onChange={handleChange}
+                onBlur={handleBlur}
+                onKeyDown={handleKeyDown}
+                className={textareaClassName}
+                rows={1}
+                aria-label="動画タイトルを編集"
+            />
+        );
+    }
+    
+    return (
+        <h3 onClick={() => setIsEditing(true)} className={className}>
+            {title}
+        </h3>
+    );
+};
+
+
+const Header: React.FC<{ isDarkMode: boolean; channelName: string; onChannelNameChange: (name: string) => void; }> = ({ isDarkMode, channelName, onChannelNameChange }) => (
   <header className={`flex items-center justify-between p-3 ${isDarkMode ? 'text-white' : 'text-black'}`}>
     <ArrowLeftIcon className="w-6 h-6" />
-    <h1 className="text-lg font-medium">ほにゃららCH</h1>
+    <EditableField
+        value={channelName}
+        onChange={onChannelNameChange}
+        className="text-lg font-medium text-center flex-1 mx-4 cursor-text"
+        inputClassName={`text-lg font-medium text-center flex-1 mx-4 bg-transparent focus:outline-none ring-1 rounded ${isDarkMode ? 'ring-indigo-400' : 'ring-indigo-500'}`}
+        ariaLabel="チャンネル名を編集"
+    />
     <div className="flex items-center space-x-4">
       <CastIcon className="w-6 h-6" />
       <SearchIcon className="w-6 h-6" />
@@ -126,7 +260,6 @@ const PasteFallbackInput: React.FC<{ onPaste: (e: React.ClipboardEvent) => void;
 
     return (
         <div className="flex items-center gap-2 w-full">
-            {/* Fix: The `placeholder` attribute is not valid on a `div`. It has been replaced with a `data-placeholder` attribute and styled with CSS pseudo-elements via Tailwind CSS to function as a placeholder. */}
             <div
                 ref={pasteAreaRef}
                 onPaste={onPaste}
@@ -156,6 +289,8 @@ interface ControlPanelProps {
   pasteFallbackTarget: number | null;
   onPasteFromFallback: (e: React.ClipboardEvent) => void;
   onCancelPasteFallback: () => void;
+  onScreenshot: () => void;
+  isCapturing: boolean;
 }
 
 const ControlPanel: React.FC<ControlPanelProps> = ({ 
@@ -167,6 +302,8 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     pasteFallbackTarget,
     onPasteFromFallback,
     onCancelPasteFallback,
+    onScreenshot,
+    isCapturing,
 }) => {
     const uploaderSections = [
         { label: 'アップロード① (大サムネ + 小サムネ1)', index: 0 },
@@ -176,11 +313,20 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     
     return (
       <div className={`w-full p-6 rounded-xl shadow-lg space-y-6 transition-colors duration-300 ${isDarkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white'}`}>
-        <div className="flex justify-between items-start">
+        <div className="flex justify-between items-center">
           <div>
             <h2 className={`text-xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>YouTubeサムネイルプレビュー</h2>
           </div>
-           <div className="flex items-center space-x-2 flex-shrink-0 ml-4">
+           <div className="flex items-center space-x-3 flex-shrink-0 ml-4">
+            <button
+                onClick={onScreenshot}
+                disabled={isCapturing}
+                className={`p-2 rounded-full transition-colors ${isDarkMode ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-600 hover:bg-gray-200'}`}
+                aria-label="共有用にプレビューを撮影"
+                title="共有用にプレビューを撮影"
+            >
+                <CameraIcon className="w-5 h-5" />
+            </button>
             <span className={`text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>ダークモード</span>
             <button
               onClick={onDarkModeToggle}
@@ -242,7 +388,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
 
 // --- Preview Components ---
 
-const FeaturedVideo: React.FC<{ video: Video; onTitleChange: (newTitle: string) => void; onThumbnailDelete: () => void; isDarkMode: boolean; }> = ({ video, onTitleChange, onThumbnailDelete, isDarkMode }) => {
+const FeaturedVideo: React.FC<{ video: Video; onTitleChange: (newTitle: string) => void; onThumbnailDelete: () => void; isDarkMode: boolean; channelName: string; onChannelNameChange: (newName: string) => void; }> = ({ video, onTitleChange, onThumbnailDelete, isDarkMode, channelName, onChannelNameChange }) => {
   const isUploaded = video.thumbnailUrl.startsWith('data:image');
 
   return (
@@ -263,24 +409,22 @@ const FeaturedVideo: React.FC<{ video: Video; onTitleChange: (newTitle: string) 
         </span>
       </div>
       <div className="flex items-start p-3 space-x-3">
-        <img src={video.channel.iconUrl} alt={video.channel.name} className="w-9 h-9 rounded-full mt-1" />
-        <div className="flex-grow">
-          <h3 
-              className={`text-base leading-tight line-clamp-2 focus:outline-none focus:ring-1 rounded px-1 cursor-text ${isDarkMode ? 'text-white focus:ring-white' : 'text-black focus:ring-black'}`}
-              contentEditable
-              suppressContentEditableWarning={true}
-              onBlur={(e) => onTitleChange(e.currentTarget.textContent || '')}
-              onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                      e.preventDefault();
-                      e.currentTarget.blur();
-                  }
-              }}
-          >
-              {video.title}
-          </h3>
+        <img src={video.channel.iconUrl} alt={channelName} className="w-9 h-9 rounded-full mt-1" />
+        <div className="flex-grow min-w-0">
+          <EditableTitle
+            title={video.title}
+            onTitleChange={onTitleChange}
+            className={`text-base leading-tight line-clamp-2 focus:outline-none focus:ring-1 rounded px-1 cursor-text ${isDarkMode ? 'text-white focus:ring-white' : 'text-black focus:ring-black'}`}
+          />
           <p className={`text-xs mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-            {video.channel.name}・{video.views}回視聴・{video.age}
+            <EditableField
+                value={channelName}
+                onChange={onChannelNameChange}
+                className="inline cursor-text"
+                inputClassName={`inline bg-transparent text-xs p-0 focus:outline-none ring-1 rounded ${isDarkMode ? 'ring-indigo-400 text-gray-400' : 'ring-indigo-500 text-gray-500'}`}
+                ariaLabel="チャンネル名を編集"
+            />
+            ・{video.views}回視聴・{video.age}
           </p>
         </div>
         <div className="flex-shrink-0">
@@ -311,21 +455,12 @@ const VideoItem: React.FC<{ video: Video; onTitleChange: (newTitle: string) => v
             {video.duration}
           </span>
         </div>
-        <div className="flex-grow">
-          <h3 
-              className={`text-sm leading-tight line-clamp-2 focus:outline-none focus:ring-1 rounded px-1 cursor-text ${isDarkMode ? 'text-white focus:ring-white' : 'text-black focus:ring-black'}`}
-              contentEditable
-              suppressContentEditableWarning={true}
-              onBlur={(e) => onTitleChange(e.currentTarget.textContent || '')}
-              onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                      e.preventDefault();
-                      e.currentTarget.blur();
-                  }
-              }}
-            >
-              {video.title}
-          </h3>
+        <div className="flex-grow min-w-0">
+          <EditableTitle
+            title={video.title}
+            onTitleChange={onTitleChange}
+            className={`text-sm leading-tight line-clamp-2 focus:outline-none focus:ring-1 rounded px-1 cursor-text ${isDarkMode ? 'text-white focus:ring-white' : 'text-black focus:ring-black'}`}
+          />
           <p className={`text-xs mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
             {video.views}回視聴・{video.age}
           </p>
@@ -338,8 +473,8 @@ const VideoItem: React.FC<{ video: Video; onTitleChange: (newTitle: string) => v
 };
 
 
-const AppShell: React.FC<{ children: React.ReactNode; isDarkMode: boolean; }> = ({ children, isDarkMode }) => (
-    <div className="w-full max-w-sm flex-shrink-0">
+const AppShell = forwardRef<HTMLDivElement, { children: React.ReactNode; isDarkMode: boolean; channelName: string; onChannelNameChange: (name: string) => void; }>(({ children, isDarkMode, channelName, onChannelNameChange }, ref) => (
+    <div ref={ref} className="w-full max-w-sm flex-shrink-0">
         <div className={`rounded-3xl shadow-2xl overflow-hidden border-4 flex flex-col h-[780px] transition-colors duration-300 ${isDarkMode ? 'bg-[#0f0f0f] border-gray-800' : 'bg-white border-gray-200'}`}>
           {/* Status Bar */}
           <div className={`px-4 py-1 flex justify-between items-center text-xs font-mono flex-shrink-0 ${isDarkMode ? 'text-white' : 'text-black'}`}>
@@ -351,7 +486,7 @@ const AppShell: React.FC<{ children: React.ReactNode; isDarkMode: boolean; }> = 
               </div>
           </div>
           
-          <Header isDarkMode={isDarkMode} />
+          <Header isDarkMode={isDarkMode} channelName={channelName} onChannelNameChange={onChannelNameChange} />
           <Tabs isDarkMode={isDarkMode} />
           <div className="flex-grow overflow-y-auto">
             {children}
@@ -359,7 +494,7 @@ const AppShell: React.FC<{ children: React.ReactNode; isDarkMode: boolean; }> = 
           <Footer isDarkMode={isDarkMode} />
         </div>
     </div>
-);
+));
 
 
 // --- Main App Component ---
@@ -369,6 +504,14 @@ const App: React.FC = () => {
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [fileNames, setFileNames] = useState<string[]>(['', '', '']);
   const [pasteFallbackTarget, setPasteFallbackTarget] = useState<number | null>(null);
+  const [channelName, setChannelName] = useState('チャンネル名');
+  const [isCapturing, setIsCapturing] = useState(false);
+  const previewRef = useRef<HTMLDivElement>(null);
+
+
+  const handleChannelNameChange = useCallback((newName: string) => {
+    setChannelName(newName);
+  }, []);
 
   const updateThumbnail = useCallback((uploaderIndex: number, imageData: string) => {
     setVideos(currentVideos => {
@@ -510,68 +653,91 @@ const App: React.FC = () => {
 
     // Reset corresponding file name
     if (videoIndex === 0 || videoIndex === 1) { // Uploader 1
-        setFileNames(currentFileNames => {
-            const newFileNames = [...currentFileNames];
-            newFileNames[0] = '';
-            return newFileNames;
+        setFileNames(names => {
+            const newNames = [...names];
+            newNames[0] = '';
+            return newNames;
         });
     } else if (videoIndex === 2) { // Uploader 2
-        setFileNames(currentFileNames => {
-            const newFileNames = [...currentFileNames];
-            newFileNames[1] = '';
-            return newFileNames;
+        setFileNames(names => {
+            const newNames = [...names];
+            newNames[1] = '';
+            return newNames;
         });
     } else if (videoIndex === 3) { // Uploader 3
-        setFileNames(currentFileNames => {
-            const newFileNames = [...currentFileNames];
-            newFileNames[2] = '';
-            return newFileNames;
+        setFileNames(names => {
+            const newNames = [...names];
+            newNames[2] = '';
+            return newNames;
         });
     }
   }, [videos]);
 
 
-  return (
-    <div className={`min-h-screen flex flex-col lg:flex-row items-center lg:items-start justify-center p-4 sm:p-8 gap-8 transition-colors duration-300 ${isDarkMode ? 'bg-gray-900' : 'bg-slate-100'}`}>
-      
-      <div className="w-full max-w-lg lg:sticky lg:top-8">
-        <ControlPanel 
-          onThumbnailChange={handleThumbnailChange}
-          onPaste={handlePaste}
-          fileNames={fileNames}
-          isDarkMode={isDarkMode}
-          onDarkModeToggle={() => setIsDarkMode(prev => !prev)}
-          pasteFallbackTarget={pasteFallbackTarget}
-          onPasteFromFallback={handlePasteFromFallback}
-          onCancelPasteFallback={() => setPasteFallbackTarget(null)}
-        />
-      </div>
+  const handleTitleChange = (videoId: number, newTitle: string) => {
+    handleTitleChangeById(videoId, newTitle);
+  };
+  
+  const handleScreenshot = useCallback(() => {
+    if (previewRef.current) {
+        setIsCapturing(true);
+        html2canvas(previewRef.current, {
+            useCORS: true,
+            backgroundColor: isDarkMode ? '#0f0f0f' : '#ffffff',
+            scale: 2,
+        }).then((canvas: HTMLCanvasElement) => {
+            const link = document.createElement('a');
+            link.download = 'youtube-preview.png';
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+            setIsCapturing(false);
+        }).catch((err: Error) => {
+            console.error('oops, something went wrong!', err);
+            alert('スクリーンショットの撮影に失敗しました。');
+            setIsCapturing(false);
+        });
+    }
+  }, [isDarkMode]);
 
-      <AppShell isDarkMode={isDarkMode}>
-          <main className="flex-grow overflow-y-auto">
-            {videos.length > 0 && 
-              <FeaturedVideo 
+
+  return (
+    <div className={`min-h-screen w-full flex flex-col lg:flex-row items-center lg:items-start justify-center gap-8 p-4 lg:p-8 transition-colors duration-300 ${isDarkMode ? 'bg-gray-900' : 'bg-gray-100'}`}>
+        <div className="w-full lg:max-w-md">
+            <ControlPanel 
+                onThumbnailChange={handleThumbnailChange}
+                onPaste={handlePaste}
+                fileNames={fileNames}
+                isDarkMode={isDarkMode}
+                onDarkModeToggle={() => setIsDarkMode(!isDarkMode)}
+                pasteFallbackTarget={pasteFallbackTarget}
+                onPasteFromFallback={handlePasteFromFallback}
+                onCancelPasteFallback={() => setPasteFallbackTarget(null)}
+                onScreenshot={handleScreenshot}
+                isCapturing={isCapturing}
+            />
+        </div>
+        <AppShell ref={previewRef} isDarkMode={isDarkMode} channelName={channelName} onChannelNameChange={handleChannelNameChange}>
+            <FeaturedVideo 
                 video={videos[0]} 
-                onTitleChange={(newTitle) => handleTitleChangeById(videos[0].id, newTitle)}
+                onTitleChange={(newTitle) => handleTitleChange(videos[0].id, newTitle)}
                 onThumbnailDelete={() => handleThumbnailDelete(videos[0].id)}
                 isDarkMode={isDarkMode}
-              />
-            }
-            
-            <div className="px-1 pt-2">
-                <h2 className={`font-medium text-lg px-2 my-2 ${isDarkMode ? 'text-white' : 'text-black'}`}>人気の動画</h2>
+                channelName={channelName}
+                onChannelNameChange={handleChannelNameChange}
+            />
+            <div className={`px-2 pb-2`}>
+                <h3 className={`text-lg font-medium mb-1 ${isDarkMode ? 'text-white' : 'text-black'}`}>人気の動画</h3>
                 {videos.slice(1).map((video) => (
                     <VideoItem 
-                      key={video.id} 
-                      video={video} 
-                      onTitleChange={(newTitle) => handleTitleChangeById(video.id, newTitle)}
-                      onThumbnailDelete={() => handleThumbnailDelete(video.id)}
-                      isDarkMode={isDarkMode}
+                        key={video.id} 
+                        video={video}
+                        onTitleChange={(newTitle) => handleTitleChange(video.id, newTitle)}
+                        onThumbnailDelete={() => handleThumbnailDelete(video.id)}
+                        isDarkMode={isDarkMode}
                     />
                 ))}
             </div>
-          </main>
-      </AppShell>
+        </AppShell>
     </div>
   );
 };
